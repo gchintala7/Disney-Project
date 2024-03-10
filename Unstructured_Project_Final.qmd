@@ -1,0 +1,365 @@
+---
+title: "Unstructured Data Project"
+author: "Gayatri Chintala"
+date: "2/29/2024"
+format:
+  html:
+    toc: true
+    toc-location: left
+    theme: Sketchy
+    highlight-style: dark
+    self-contained: true
+    
+---
+
+
+
+![ ](C:/Users/gayat/OneDrive/Pictures/Screenshots/Screenshot (21).png) 
+
+
+# Introduction
+
+The objective of this project is to conduct a sentiment analysis on user reviews of Disneyland attractions in three distinct locations: **Paris**, **California**, and **Hong Kong**. By employing web scraping techniques, sentiment analysis, and data visualization, this project seeks to uncover insights into user sentiments across different aspects such as service, wait time and attractions. 
+
+
+
+# Data Retrieval
+
+The data retrieval process involves utilizing the **httr** and **jsonlite** libraries to access TripAdvisor's review data for Disneyland attractions. A **for** loop is employed to iterate through multiple pages for each location, capturing the review links for subsequent analysis.
+
+```{r eval=FALSE}
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(httr2)
+
+####I am trying to get all the reviews from the disneyland review page.
+
+link <- "https://www.trip.com/restapi/soa2/19707/getReviewSearch"
+```
+
+
+```{r eval=FALSE}
+####I wrote a for loop to iterate over the page and get all the review links.
+###It is important to note here that the page index only needs to be changed to get the number of comments on the page. I have set it to 20 for now.
+
+page_indices <- 1:20
+result_list <- list()
+
+for (page_index in page_indices) {
+  payload <- paste0('{"poiId":87940,"locale":"en-XX","pageSize":20,"pageIndex":', 
+                    page_index, ',"commentTagId":0,"head":{"locale":"en-XX","cver":"3.0","cid":"1708443855389.d3d9njUuLOta","sid":"","extension":[{"name":"locale","value":"en-XX"},{"name":"platform","value":"Online"},{"name":"currency","value":"USD"},{"name":"aid","value":""}]}}')
+  cookie <- 'ibulanguage=EN; ibulocale=en_xx; cookiePricesDisplayed=USD; UBT_VID=1708443855389.d3d9njUuLOta; _RF1=66.254.228.100; _RSG=b54U4NGrab9yfHrsbbGRsB; _RDG=28f62460d030bd2b402de7a2ee6f32d45b; _RGUID=9964d505-c478-4165-bd9b-425976d51a7c; _bfa=1.1708443855389.d3d9njUuLOta.1.1708444300187.1708445712765.1.3.10650006154; Union=AllianceID=1078328&SID=2036522&OUID=ctag.hash.cbd76eca7d3f&Expires=1711037712871&createtime=1708445712'
+  
+  disney_request <- request(link) %>%
+    req_headers("Origin" = "https://www.trip.com",
+                "Referer" = "https://www.trip.com/travel-guide/attraction/chessy/disneyland-paris-87940/",
+                "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Cookie" = cookie) %>%
+    req_body_raw(payload[1]) %>%
+    req_perform()
+  
+  
+  my_links <- jsonlite::fromJSON(resp_body_string(disney_request))
+  review_links <- my_links[["reviewList"]][["reviewH5Url"]]
+  
+  result_list[[length(result_list) + 1]] <- review_links
+  }
+
+all_review_links_paris <- unlist(result_list)
+
+####Once I got all the links, I wanted to get the comments under those links. I wrote this function to get the comments.
+```
+
+# Comments Extraction
+
+The **rvest** library is instrumental in extracting comments from the collected review links. The extract_comments function is designed to scrape comments from a given link, and **lapply** is utilized to iterate through all links for each Disneyland location.
+
+```{r eval=FALSE}
+library(rvest)
+
+extract_comments <- function(link) {
+  my_page <- read_html(link) %>%
+    html_elements(".content") %>%
+    html_text()
+  
+  return(my_page)
+}
+
+####I used lapply to iterate over those links and get the comments.
+
+all_comments_paris <- lapply(all_review_links_paris, extract_comments)
+all_comments_paris <- unlist(all_comments_paris)
+
+
+####I then wrote the comments to a csv file, to ensure that I don't lose the data. I also wrote it for convenience and to avoid running the code again and again.
+write.csv(all_comments_paris, "all_comments_paris.csv")
+```
+
+```{r eval=FALSE}
+page_indices <- 1:20
+result_list <- list()
+
+for (page_index in page_indices) {
+  payload <- paste0('{"poiId":10558849,"locale":"en-XX","pageSize":20,"pageIndex":', 
+                    page_index, ',"commentTagId":0,"head":{"locale":"en-XX","cver":"3.0","cid":"1708443855389.d3d9njUuLOta","sid":"","extension":[{"name":"locale","value":"en-XX"},{"name":"platform","value":"Online"},{"name":"currency","value":"USD"},{"name":"aid","value":""}]}}')
+  cookie <- 'ibulanguage=EN; ibulocale=en_xx; cookiePricesDisplayed=USD; UBT_VID=1708443855389.d3d9njUuLOta; _RF1=66.254.228.100; _RSG=b54U4NGrab9yfHrsbbGRsB; _RDG=28f62460d030bd2b402de7a2ee6f32d45b; _RGUID=9964d505-c478-4165-bd9b-425976d51a7c; _bfa=1.1708443855389.d3d9njUuLOta.1.1708444300187.1708445712765.1.3.10650006154; Union=AllianceID=1078328&SID=2036522&OUID=ctag.hash.cbd76eca7d3f&Expires=1711037712871&createtime=1708445712'
+  
+  disney_request <- request(link) %>%
+    req_headers("Origin" = "https://www.trip.com",
+                "Referer" = "https://www.trip.com/travel-guide/attraction/hong-kong/hong-kong-disneyland-10558849/",
+                "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Cookie" = cookie) %>%
+    req_body_raw(payload[1]) %>%
+    req_perform()
+  
+  
+  my_links <- jsonlite::fromJSON(resp_body_string(disney_request))
+  review_links <- my_links[["reviewList"]][["reviewH5Url"]]
+  
+  result_list[[length(result_list) + 1]] <- review_links
+}
+
+all_review_links_hong_kong <- unlist(result_list)
+
+
+all_comments_HK <- lapply(all_review_links_hong_kong, extract_comments)
+all_comments_HK <- unlist(all_comments_HK)
+
+write.csv(all_comments_HK, "all_comments_HK.csv")
+```
+
+```{r eval=FALSE}
+page_indices <- 1:20
+result_list <- list()
+
+for (page_index in page_indices) {
+  payload <- paste0('{"poiId":10758975,"locale":"en-XX","pageSize":20,"pageIndex":', 
+                    page_index, ',"commentTagId":0,"head":{"locale":"en-XX","cver":"3.0","cid":"1708443855389.d3d9njUuLOta","sid":"","extension":[{"name":"locale","value":"en-XX"},{"name":"platform","value":"Online"},{"name":"currency","value":"USD"},{"name":"aid","value":""}]}}')
+  cookie <- 'ibulanguage=EN; ibulocale=en_xx; cookiePricesDisplayed=USD; UBT_VID=1708443855389.d3d9njUuLOta; _RF1=66.254.228.100; _RSG=b54U4NGrab9yfHrsbbGRsB; _RDG=28f62460d030bd2b402de7a2ee6f32d45b; _RGUID=9964d505-c478-4165-bd9b-425976d51a7c; _bfa=1.1708443855389.d3d9njUuLOta.1.1708444300187.1708445712765.1.3.10650006154; Union=AllianceID=1078328&SID=2036522&OUID=ctag.hash.cbd76eca7d3f&Expires=1711037712871&createtime=1708445712'
+  
+  disney_request <- request(link) %>%
+    req_headers("Origin" = "https://www.trip.com",
+                "Referer" = "https://www.trip.com/travel-guide/attraction/anaheim/disneyland-park-10758975/",
+                "User-Agent" = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+                "Cookie" = cookie) %>%
+    req_body_raw(payload[1]) %>%
+    req_perform()
+  
+  
+  my_links <- jsonlite::fromJSON(resp_body_string(disney_request))
+  review_links <- my_links[["reviewList"]][["reviewH5Url"]]
+  
+  result_list[[length(result_list) + 1]] <- review_links
+}
+
+all_review_links_cali <- unlist(result_list)
+
+
+all_comments_cali <- lapply(all_review_links_cali, extract_comments)
+all_comments_cali <- unlist(all_comments_cali)
+
+write.csv(all_comments_cali, "all_comments_cali.csv")
+
+
+####I did the same above mentioned things for all the three prime locations that I want to investigate on.
+```
+
+
+```{r message=FALSE}
+suppressPackageStartupMessages(library(dplyr))
+
+###I read in all the csv files that I saved earlier.
+all_comments_paris <- read.csv("all_comments_paris.csv")
+all_comments_cali <- read.csv("all_comments_cali.csv")
+all_comments_HK <- read.csv("all_comments_HK.csv")
+
+####I then combined all the comments into a single dataframe for sentiment analysis.
+my_comments <- bind_rows(
+  data.frame(Location = "Paris Disneyland", Comments = all_comments_paris),
+  data.frame(Location = "California Disneyland", Comments = all_comments_cali),
+  data.frame(Location = "Hong Kong Disneyland", Comments = all_comments_HK)
+)
+
+####I modified my dataframe according to my requirements and analysis demands.
+my_comments <- my_comments[ ,-2]
+colnames(my_comments) <- c("Location", "Comments")
+```
+
+
+# Sentiment Analysis
+
+Sentiment analysis is conducted using several R libraries, including **sentimentr**, **lexicon**, **magrittr**, and **tidytext**. A sentiment score is calculated for each comment and appended to a dataframe. To provide a more granular analysis, sentiments are categorized into aspects like Service, Wait Time, Attractions, and Others, using predefined keywords.
+
+```{r}
+suppressPackageStartupMessages(library(sentimentr))
+suppressPackageStartupMessages(library(lexicon))
+suppressPackageStartupMessages(library(magrittr))
+suppressPackageStartupMessages(library(tidytext))
+
+####My comments column was very much clean, but I noticed some emoticons and only numbers in my comments column.I then cleaned my comments to remove any numbers and special characters. I also removed any empty comments.
+
+my_comments <- my_comments %>%
+  filter(!grepl("^[0-9]+$", Comments)) %>%
+  mutate(Comments = gsub("[^a-zA-Z0-9 ]", "", Comments))
+
+sentiment_scores <- numeric(nrow(my_comments))
+
+####I wrote a for loop here for the sentiment score to iterate over each comment and get me a value.
+
+
+for (i in 1:nrow(my_comments)) {
+  
+  comment <- my_comments$Comment[i]
+  sentiment_score <- sentiment(comment) %>% 
+    summarise(sentiment = mean(sentiment)) %>% 
+    pull(sentiment)
+  
+  
+  sentiment_scores[i] <- sentiment_score
+}
+
+####I then combined that value with my dataframe.
+
+my_comments$sentiment_score <- sentiment_scores
+```
+
+```{r message=FALSE}
+####This is where the stuff gets interesting. So now I need to get my sentiment analysis to a more specific platform. So I gave it some key words to search for in the comments. I asked it to get me the combined analysis of my sentiment scores with respect to the three disneylands. 
+
+service_keywords <- c("service", "staff", "customer service")
+wait_time_keywords <- c("wait time", "queue", "waiting")
+attractions_keywords <- c("attractions", "rides", "entertainment")
+
+
+####I then used the unnest_tokens function to get the words from the comments. I then used the mutate function to get the aspect of the comments. I used the case_when function to get the aspect of the comments.
+my_comments <- my_comments %>%
+  unnest_tokens(word, Comments)
+
+my_comments <- my_comments %>%
+  mutate(
+    Aspect = case_when(
+      grepl(paste(service_keywords, collapse = "|"), word, ignore.case = TRUE) ~ "Service",
+      grepl(paste(wait_time_keywords, collapse = "|"), word, ignore.case = TRUE) ~ "Wait Time",
+      grepl(paste(attractions_keywords, collapse = "|"), word, ignore.case = TRUE) ~ "Attractions",
+      TRUE ~ "Other"
+    )
+  )
+
+####I then summarised my sentiment scores and comments with respect to the three disneylands.
+
+sentiment_summary <- my_comments %>%
+  group_by(Location, Aspect) %>%
+  summarize(
+    Average_Sentiment = mean(sentiment_score),
+    Num_Comments = n()
+  )
+
+print(sentiment_summary)
+```
+
+
+# Visualization
+
+The **ggplot2** library to create the plots that could better explain my analysis. I harnessed it to create a visually informative box plot of the aspect parameters I am considering. Then I plotted a visual that illustrates the average sentiment scores for each aspect, distinguishing between the three Disneyland locations. The visualization provides a clear overview of user sentiments regarding service, wait time, and attractions in the different locations. I also created an interactive plot of the sentiment scores per aspect and location using the **plotly** library. This interactive plot allows for a more detailed analysis of the sentiment scores, providing a comparison of the three values when hovering over the plot.
+
+```{r}
+####I then used the ggplot2 library to create a boxplot of the sentiment scores per aspect. This will allow me to look at the aspect that is most bothering to Disneyland visitors.
+
+library(ggplot2)
+
+ggplot(sentiment_summary, aes(x = Aspect, y = Average_Sentiment)) +
+  geom_boxplot(fill = "lightblue", color = "black") +
+  labs(title = "Aspect Analysis",
+       x = "Aspect",
+       y = "Sentiment Score") +
+  theme_minimal()
+
+```
+
+```{r}
+####I wanted to give you a visual representation of what I found. It is also easier for me to analyse it this way. So I created a plot of average sentiment scores per aspect, that is in my case: service, wait time and attractions.
+library(ggplot2)
+
+
+ggplot(sentiment_summary, aes(x = Aspect, y = Average_Sentiment, fill = Location)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Sentiment Scores by Aspect and Location",
+       x = "Aspect",
+       y = "Average Sentiment Score") +
+  theme_minimal()
+```
+
+```{r message=FALSE}
+####I tried this interactive plot and used the plotly library to create an interactive plot of the sentiment scores per aspect and location. It would just help me find the exact values that are not always easy to find in a static plot. It can also give me a comparison of the three values when I hover over it. 
+library(plotly)
+
+plot_ly(sentiment_summary, x = ~Aspect, y = ~Average_Sentiment, color = ~Location, type = "bar") %>%
+  layout(title = "Interactive Sentiment Scores by Aspect and Location",
+         xaxis = list(title = "Aspect"),
+         yaxis = list(title = "Average Sentiment Score"))
+
+```
+
+# Results and Findings
+
+The sentiment analysis results showcase nuanced variations in user sentiments across different aspects and locations. For instance, the average sentiment for Service in California Disneyland is lower compared to Hong Kong and Paris. The detailed sentiment summary table and the accompanying bar plot offer a comprehensive understanding of user sentiments, allowing for actionable insights.
+
+## Aspect Inspection
+
+The boxplot displays the distribution of sentiment scores for four different aspects: Attractions, Other, Service, and Wait Time. Here’s what the plot is indicating:
+
+- **Attractions**: This aspect has a median sentiment score at just 0.6, indicating a moderately positive sentiment overall. It is also the highest positive sentiment score among the four aspects.
+
+- **Other**: The 'Other' category has a slightly lower median sentiment score compared to 'Attractions', sitting at about 0.55 suggesting less variability in the sentiment for this aspect.
+
+- **Service**: This aspect indicates more variability in how people feel about the service. The range of sentiment scores is slightly wider than the 'Other' category.
+
+- **Wait Time**: This aspect has the lowest median sentiment score of approximately 0.3, indicating a generally more negative sentiment compared to the other aspects.The minimum value, suggests that most sentiments are clustered around the lower end of the scale. 
+
+In summary, the sentiment is most positive for Attractions and most negative for Wait Time, with Other and Service falling in between.
+
+## Comparison of Sentiment Scores by Aspect and Location
+
+###	Attractions:
+
+-	**Hong Kong Disneyland**: Boasts the highest sentiment score, indicating exceptional visitor satisfaction with the attractions.
+-	**California Disneyland**: Follows closely, reflecting positive feedback on its attractions.
+-	**Paris Disneyland**: While positive, shows room for improvement, signaling a potential focus area.
+###	Service:
+-	**Paris Disneyland**: Earns the highest sentiment score, indicating favorable perceptions of service quality.
+-	**Hong Kong Disneyland**: Close behind, maintaining a positive service sentiment.
+-	**California Disneyland**: Reflects a lower sentiment score, indicating potential areas for service improvement.
+
+###	Wait Time:
+
+-	**Paris Disneyland**: Leads in sentiment score, suggesting efficient management of wait times.
+-	**Hong Kong Disneyland**: Moderately positive sentiment, with a competitive score.
+-	**California Disneyland**: Exhibits the lowest score, signaling an opportunity to address visitor concerns about wait times.
+
+###	Other:
+
+-	**California Disneyland**: Leads in sentiment score, excelling in aspects beyond Attractions, Service, or Wait Time.
+-	**Hong Kong Disneyland**: Slightly trails California, indicating mixed feelings about non-categorized aspects.
+-	**Paris Disneyland**: Scores lower, suggesting varied visitor sentiments about miscellaneous aspects.
+
+
+
+# Overall Comparison:
+
+-	**Paris Disneyland**: Demonstrates consistent high sentiment scores in both wait time and service, portraying an overall positive visitor experience.
+-	**California Disneyland**: Excels in miscellaneous aspects but shows room for improvement in Attractions, Service and Wait Time.
+-	**Hong Kong Disneyland**: Strongly positioned, indicating competitive strength in key areas.
+
+# Limitations and Considerations
+
+It's crucial to acknowledge the limitations of the project. User comments may contain sarcasm or context-specific sentiments that may not be accurately captured by the current methodology.
+
+# Conclusion
+
+In conclusion, this project successfully retrieves, extracts, analyzes, and visualizes sentiment scores from user reviews of Disneyland attractions in different locations. The insights gained can prove invaluable for park management, helping identify areas of improvement and areas of excellence. Disneyland is all about the visitor experience, happy visitors are repeat customers. This sentiment analysis helps in making this experience as magical as it should be. This report lays the groundwork for future analyses and enhancements to better understand user sentiments and enhance the overall Disneyland experience.
+
+# Future Work
+
+Future work may include expanding the analysis to more Disneyland locations, refining the aspect categorization methodology and incorporating user demographics for a more nuanced interpretation of sentiments.
+
